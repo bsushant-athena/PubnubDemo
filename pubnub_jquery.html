@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        input {
+            height: 25px;
+            width: 270px;
+        }
+        
+        #right {
+            width: 300px;
+            height: 700px;
+            float: right;
+            background: lightgrey;
+        }
+        
+        #box {
+            width: 800px;
+            height: 700px;
+            float: right;
+            background: gainsboro;
+        }
+        
+        #left {
+            width: 300px;
+            height: 700px;
+            float: right;
+            background: lightgrey;
+        }
+        
+        #h4-msg {
+            display: inline-block;
+            text-align: middle;
+            margin-left: 300px;
+        }
+        
+        #h4-top {
+            display: inline-block;
+            text-align: middle;
+        }
+        
+        #h4-left {
+            display: inline-block;
+            text-align: left;
+            margin-left: 10px;
+        }
+        
+        #h4-online {
+            text-align: right;
+            display: inline-block;
+            margin-left: 450px;
+        }
+        
+        #h4-history {
+            text-align: left;
+            display: inline-block;
+            margin-left: 320px;
+        }
+    </style>
+    <title>Pubnub Chat App</title>
+</head>
+
+<body>
+<form>
+<h4 id='h4-top'>Enter Name</h4>
+<input id='name-input' placeholder='type-name-here' required>
+<h4 id='h4-top'>Enter JWT Token</h4>
+<input id='jwt-input' placeholder='paste-token-here' required> <a href="http://jwtbuilder.jamiekurtz.com" target="_blank">Get JWT Token</a>
+<br>
+<h4 id="h4-top">Publisher Key</h4>
+<input id="pubValue" required>
+<h4 id="h4-top">Subscriber Key</h4>
+<input id="subValue" required>
+<button id="fetch"><b>Fetch Keys</b></button>
+<button id="createGroup"><b>Create Group</b></button>
+<button id="joinGroup"><b>Join Existing Group</b></button>
+<button id="submit"><b>Submit</b></button>
+</form>
+<h3>
+    Enter message and press post
+</h3>
+<input id="input" placeholder='type-message-here'>
+<button id="post_msg"><b>Post Message</b></button>
+<hr> 
+<div>
+<button id="history">History</button>
+<h4 id="h4-msg">Messages</h4>
+<h4 id="h4-online">Online Users</h4>
+</div>
+
+<div id="left">
+</div>
+
+<div id="box">  
+</div>
+
+<div id="right">  
+</div>
+<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.4.0.11.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script>
+(function(){
+
+  var newUUID,groupChatId,channel,fetch = document.getElementById('fetch'),submit = document.getElementById('submit'),jwt_input= document.getElementById('jwt-input'),pubValue = document.getElementById('pubValue'),subValue = document.getElementById('subValue'),createGroup = document.getElementById('createGroup'),joinGroup = document.getElementById('joinGroup');
+
+  submit.disabled = true;
+  joinGroup.disabled = true;
+  fetch.addEventListener("click",function(){
+        jwt_input = jwt_input.value;
+        console.log('fetching keys',jwt_input);
+        $.ajax({
+         url: 'http://satdevv739.athenahealth.com:33778/config',
+         type: "GET",
+         beforeSend: function(xhr){
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('Authorization', jwt_input);
+         },
+         success: function(data) {
+            console.log("new keys=",data);
+            pubValue.value = data.publishKey;
+            subValue.value = data.subscribeKey;
+         },
+         error: function(data) {
+            alert(JSON.stringify(data));
+         }
+        });
+        fetch.disabled = true;
+        joinGroup.disabled = false;
+   });
+   createGroup.addEventListener("click",function(){
+        var users = ["sam","rao","king"];
+        var groupChatInput = JSON.stringify({
+              "userIds": [
+                "sam","ram","kim","bsushant"
+              ],
+              "name": "Test Group",
+              "description": "Testing"
+            });
+        console.log('createGroup onclick');    
+        $.ajax({
+         url: 'http://satdevv739.athenahealth.com:33778/groupChats',
+         type: "POST",
+         data: groupChatInput,
+         beforeSend: function(xhr){
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('Content-Type','application/json');
+            xhr.setRequestHeader('Authorization',jwt_input);
+         },
+         success: function(data) {
+            console.log("groupchatId=",data);
+            groupChatId = data.groupChatId;
+         },
+         error: function(data) {
+            alert(JSON.stringify(data));
+         }
+        });
+        createGroup.disabled = true;
+        submit.disabled = false;
+        //publish and subscribe(once) on the same id 
+        //all chat messages should reflect on box
+  });
+  joinGroup.addEventListener("click",function(){
+        var existingUsers = JSON.stringify({
+            "userIds": [
+              "bsushant","sam","ram","kim"
+            ]
+        });
+        $.ajax({
+           url: 'http://satdevv739.athenahealth.com:33778/groupChats/search',
+           type: "POST",
+           data: existingUsers,
+           beforeSend: function(xhr){
+              xhr.setRequestHeader('Accept', 'application/json');
+              xhr.setRequestHeader('Content-Type','application/json');
+              xhr.setRequestHeader('Authorization',jwt_input);
+           },
+           success: function(data) {
+              console.log("groupchat data=",data);
+              if(data.groupChatFound){
+                console.log('groupchatId found');
+                groupChatId = data.groupChatId;
+                channel = groupChatId;
+                alert('Joined Existing Private Group',channel);
+              }
+           },
+           error: function(data) {
+              alert(JSON.stringify(data));
+           }
+        });
+        joinGroup.disabled = true;
+        submit.disabled = false;
+  });
+  submit.addEventListener("click",function(){
+      var name = document.getElementById('name-input');
+      newUUID = name.value;
+      submit.disabled= true;
+      if(newUUID!=""){
+          var box = document.getElementById('box'),post_msg = document.getElementById('post_msg'),right = document.getElementById('right') ,left = document.getElementById("left"),input = document.getElementById('input'), history = document.getElementById('history'),count = 1, countUsers =1, msgCount=1,userConnected;
+          //presence
+          $.ajax({
+           url: 'http://satdevv739.athenahealth.com:33778/presences?groupChatId='+channel,
+           type: "GET",
+           beforeSend: function(xhr){
+              xhr.setRequestHeader('Accept', 'application/json');
+              xhr.setRequestHeader('Content-Type','application/json');
+              xhr.setRequestHeader('Authorization',jwt_input);
+           },
+           success: function(data) {
+              console.log("groupchat data=",data);
+              if(channel === data.presences[2].groupChatId)
+              {
+                userConnected = data.presences[2].userId;
+                console.log('userConnected is=',userConnected);
+                alert('Your are online now !');
+              }
+           },
+           error: function(data) {
+              alert(JSON.stringify(data));
+           }
+         });
+
+          console.log('username=',newUUID);
+          console.log('jwt-input=',jwt_input);
+          var pubnub_pub_value = $("#pubValue").val();
+          var pubnub_sub_value = $("#subValue").val();
+          console.log('new pubkey=',pubnub_pub_value);
+          console.log('new subkey=',pubnub_sub_value);
+          var pubnub = new PubNub({ publishKey : pubnub_pub_value, subscribeKey : pubnub_sub_value,authKey: jwt_input,uuid:newUUID,logVerbosity: true});
+
+          pubnub.addListener({
+              message: function(obj) {
+                  console.log('messages=',obj);
+                  box.innerHTML =(''+(obj.message.sender)+'::'+obj.message.content.message).replace( /[<>]/g, '' ) +'<hr>'+'<br>' + box.innerHTML
+              },
+              presence: function(obj){
+                  console.log('presence=',obj);
+                  left.innerHTML =(''+(countUsers++)+'::'+obj.uuid+' '+obj.action).replace( /[<>]/g, '' ) +'<hr>'+'<br>' + left.innerHTML
+                   // left.innerHTML = ((countUsers++) + '::' + obj.action).replace(/[<>]/g, '') +
+                   //              '<input type="checkbox" class="liveUsers" value="' + obj.uuid + '">' + '<hr>' + '<br>' + left.innerHTML;
+              }
+          });
+          console.log('channel used=',channel);
+          pubnub.subscribe({channels:[channel],withPresence: true,restore: true});
+          //history
+          history.addEventListener("click",function(){
+            right.innerHTML = " ";
+            pubnub.history({
+              channel: channel,
+              count:9
+            },
+            function (status, response) {
+                var messages = response.messages;
+                console.log('object=',messages);
+                for(var i=0;i<9;i++){
+                  right.innerHTML =(messages[i].entry.sender + '::' + messages[i].entry.content.message + '').replace(/[<>]/g, '') + '<hr>' + '<br>' + right.innerHTML
+                }
+            });
+          });
+          //message enter event
+          post_msg.addEventListener('click', function(e) {
+                post_msg.disabled = true;
+                var msgBody = JSON.stringify({
+                  "body": input.value
+                });
+                $.ajax({
+                 url: 'http://satdevv739.athenahealth.com:33778/groupChats/'+channel+'/messages',
+                 type: "POST",
+                 data: msgBody,
+                 beforeSend: function(xhr){
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.setRequestHeader('Content-Type','application/json');
+                    xhr.setRequestHeader('Authorization',jwt_input);
+                 },
+                 success: function(data) {
+                    console.log("message 201 ack=",data);
+                    alert('Message posted :)');
+                    input.value = "";
+                    post_msg.disabled = false;
+                 },
+                 error: function(data) {
+                    alert(JSON.stringify(data));
+                    post_msg.disabled = false;
+                 }
+              });
+                /*pubnub.publish({storeInHistory: true,channel : channel,message : {text:input.value,uuid:newUUID},x : (input.value='')});*/
+          });
+        }
+      });
+})();
+</script>
+</body>
+
+</html>
